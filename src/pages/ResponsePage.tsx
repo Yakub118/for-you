@@ -104,7 +104,7 @@ const ResponsePage = () => {
           partnerName: data.partner_name,
           loveMessage: data.love_message,
           theme: data.theme,
-          photos: data.photos || []
+          photos: (Array.isArray(data.photos) ? data.photos : []) as unknown as Array<{ url: string; caption: string }>
         };
         setProposalData(proposalData);
       } else {

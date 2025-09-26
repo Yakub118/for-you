@@ -87,8 +87,8 @@ const ProposalSite = () => {
           partnerName: data.partner_name,
           loveMessage: data.love_message,
           theme: data.theme,
-          photos: data.photos || [],
-          customQuestions: data.questions || []
+          photos: (Array.isArray(data.photos) ? data.photos : []) as unknown as Photo[],
+          customQuestions: (Array.isArray(data.questions) ? data.questions : []) as unknown as CustomQuestion[]
         };
         setProposalData(proposalData);
       } else {
