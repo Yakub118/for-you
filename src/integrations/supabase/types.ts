@@ -47,6 +47,48 @@ export type Database = {
         }
         Relationships: []
       }
+      proposals: {
+        Row: {
+          created_at: string
+          expires_at: string | null
+          id: string
+          love_message: string
+          partner_name: string
+          photos: Json | null
+          proposer_name: string
+          questions: Json | null
+          slug: string
+          theme: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          love_message: string
+          partner_name: string
+          photos?: Json | null
+          proposer_name: string
+          questions?: Json | null
+          slug: string
+          theme?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          love_message?: string
+          partner_name?: string
+          photos?: Json | null
+          proposer_name?: string
+          questions?: Json | null
+          slug?: string
+          theme?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

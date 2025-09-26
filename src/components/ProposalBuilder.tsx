@@ -81,23 +81,10 @@ const ProposalBuilder = () => {
 
   const checkForResponses = async () => {
     try {
-      // Get all proposal slugs from localStorage
-      const proposals: string[] = [];
-      for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i);
-        if (key?.startsWith('proposal-')) {
-          const slug = key.replace('proposal-', '');
-          proposals.push(slug);
-        }
-      }
-
-      if (proposals.length === 0) return;
-
-      // Check for responses to these proposals
+      // Get all proposal responses directly from database
       const { data, error } = await supabase
         .from('proposal_responses')
         .select('*')
-        .in('proposal_slug', proposals)
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -185,8 +172,24 @@ const ProposalBuilder = () => {
         photos: photoData
       };
       
-      // Store proposal data in localStorage
-      localStorage.setItem(`proposal-${slug}`, JSON.stringify(proposalToStore));
+      // Store proposal data in database for permanent sharing
+      const { error: dbError } = await supabase
+        .from('proposals')
+        .insert([{
+          slug,
+          proposer_name: formData.proposerName,
+          partner_name: formData.partnerName,
+          love_message: formData.loveMessage,
+          theme: formData.theme,
+          photos: JSON.parse(JSON.stringify(photoData)),
+          questions: JSON.parse(JSON.stringify(formData.customQuestions || []))
+        }]);
+
+      if (dbError) {
+        console.error('Database error:', dbError);
+        // Fallback to localStorage if database fails
+        localStorage.setItem(`proposal-${slug}`, JSON.stringify(proposalToStore));
+      }
       
       toast({
         title: "Proposal Created! 💖",

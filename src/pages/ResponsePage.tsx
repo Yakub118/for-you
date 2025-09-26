@@ -77,12 +77,50 @@ const ResponsePage = () => {
     }
   };
 
-  const loadProposalData = () => {
+  const loadProposalData = async () => {
     if (!slug) return;
     
-    const data = localStorage.getItem(`proposal-${slug}`);
-    if (data) {
-      setProposalData(JSON.parse(data));
+    try {
+      const { data, error } = await supabase
+        .from('proposals')
+        .select('*')
+        .eq('slug', slug)
+        .maybeSingle();
+
+      if (error) {
+        console.error('Error loading proposal:', error);
+        // Fallback to localStorage for backward compatibility
+        const localData = localStorage.getItem(`proposal-${slug}`);
+        if (localData) {
+          setProposalData(JSON.parse(localData));
+        }
+        return;
+      }
+
+      if (data) {
+        // Convert database format to expected format
+        const proposalData: ProposalData = {
+          proposerName: data.proposer_name,
+          partnerName: data.partner_name,
+          loveMessage: data.love_message,
+          theme: data.theme,
+          photos: data.photos || []
+        };
+        setProposalData(proposalData);
+      } else {
+        // Fallback to localStorage for backward compatibility
+        const localData = localStorage.getItem(`proposal-${slug}`);
+        if (localData) {
+          setProposalData(JSON.parse(localData));
+        }
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      // Fallback to localStorage
+      const localData = localStorage.getItem(`proposal-${slug}`);
+      if (localData) {
+        setProposalData(JSON.parse(localData));
+      }
     }
   };
 
