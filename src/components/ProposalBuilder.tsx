@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -7,7 +7,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Heart, Sparkles, Camera, Wand2, Gift, Bell, Eye, Loader2 } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Heart, Sparkles, Camera, Wand2, Gift, Bell, Eye, Loader2, Upload, Clock, Mic, Video, Zap } from "lucide-react";
 import FloatingBackground from "./FloatingBackground";
 import { useToast } from "@/hooks/use-toast";
 import heroImage from "@/assets/hero-romantic.jpg";
@@ -41,7 +42,7 @@ interface ProposalData {
   theme: string;
   photos: Photo[];
   customQuestions?: CustomQuestion[];
-  // New enhanced features
+  // Enhanced features
   loveLetter?: string;
   timelineMemories?: Array<{
     id: string;
@@ -53,6 +54,9 @@ interface ProposalData {
   confettiStyle?: ConfettiStyle;
   customEndingMessage?: string;
   countdownDate?: string;
+  voiceNoteUrl?: string;
+  videoUrl?: string;
+  arEnabled?: boolean;
 }
 
 const ProposalBuilder = () => {
@@ -71,8 +75,13 @@ const ProposalBuilder = () => {
     theme: "romantic-garden",
     photos: [],
     customQuestions: [],
-    confettiStyle: "hearts"
+    confettiStyle: "hearts",
+    timelineMemories: [],
+    arEnabled: false
   });
+  
+  const voiceInputRef = useRef<HTMLInputElement>(null);
+  const videoInputRef = useRef<HTMLInputElement>(null);
 
   // Check for responses on component mount
   useEffect(() => {
@@ -182,7 +191,15 @@ const ProposalBuilder = () => {
           love_message: formData.loveMessage,
           theme: formData.theme,
           photos: JSON.parse(JSON.stringify(photoData)),
-          questions: JSON.parse(JSON.stringify(formData.customQuestions || []))
+          questions: JSON.parse(JSON.stringify(formData.customQuestions || [])),
+          love_letter: formData.loveLetter || null,
+          timeline_memories: JSON.parse(JSON.stringify(formData.timelineMemories || [])),
+          confetti_style: formData.confettiStyle || 'hearts',
+          custom_ending_message: formData.customEndingMessage || null,
+          countdown_date: formData.countdownDate ? new Date(formData.countdownDate).toISOString() : null,
+          voice_note_url: formData.voiceNoteUrl || null,
+          video_url: formData.videoUrl || null,
+          ar_enabled: formData.arEnabled || false
         }]);
 
       if (dbError) {
@@ -238,6 +255,54 @@ const ProposalBuilder = () => {
 
   const handleConfettiStyleChange = (confettiStyle: ConfettiStyle) => {
     setFormData(prev => ({ ...prev, confettiStyle }));
+  };
+
+  const handleTimelineMemoryAdd = () => {
+    const newMemory = {
+      id: `${Date.now()}-${Math.random().toString(36).substring(7)}`,
+      title: "",
+      date: "",
+      photo: "",
+      description: ""
+    };
+    setFormData(prev => ({ 
+      ...prev, 
+      timelineMemories: [...(prev.timelineMemories || []), newMemory] 
+    }));
+  };
+
+  const handleTimelineMemoryUpdate = (id: string, field: string, value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      timelineMemories: (prev.timelineMemories || []).map(memory =>
+        memory.id === id ? { ...memory, [field]: value } : memory
+      )
+    }));
+  };
+
+  const handleTimelineMemoryRemove = (id: string) => {
+    setFormData(prev => ({
+      ...prev,
+      timelineMemories: (prev.timelineMemories || []).filter(memory => memory.id !== id)
+    }));
+  };
+
+  const handleVoiceUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file && file.type.startsWith('audio/')) {
+      // Create a blob URL for preview
+      const url = URL.createObjectURL(file);
+      setFormData(prev => ({ ...prev, voiceNoteUrl: url }));
+    }
+  };
+
+  const handleVideoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file && file.type.startsWith('video/')) {
+      // Create a blob URL for preview
+      const url = URL.createObjectURL(file);
+      setFormData(prev => ({ ...prev, videoUrl: url }));
+    }
   };
 
   // Show success page if proposal was created
@@ -430,6 +495,156 @@ const ProposalBuilder = () => {
                   selectedStyle={formData.confettiStyle || 'hearts'}
                   onStyleChange={handleConfettiStyleChange}
                 />
+
+                {/* Timeline Memories Section */}
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm font-medium flex items-center gap-2">
+                      🕰️ Timeline Memories (Optional)
+                    </Label>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={handleTimelineMemoryAdd}
+                      className="text-xs"
+                    >
+                      Add Memory
+                    </Button>
+                  </div>
+                  
+                  {(formData.timelineMemories || []).map((memory, index) => (
+                    <Card key={memory.id} className="glass border-white/20 p-4">
+                      <div className="space-y-3">
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm font-medium text-primary">Memory {index + 1}</span>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleTimelineMemoryRemove(memory.id)}
+                            className="text-xs text-muted-foreground"
+                          >
+                            Remove
+                          </Button>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          <Input
+                            placeholder="Memory title"
+                            value={memory.title}
+                            onChange={(e) => handleTimelineMemoryUpdate(memory.id, 'title', e.target.value)}
+                            className="glass border-white/30"
+                          />
+                          <Input
+                            placeholder="Date"
+                            value={memory.date}
+                            onChange={(e) => handleTimelineMemoryUpdate(memory.id, 'date', e.target.value)}
+                            className="glass border-white/30"
+                          />
+                        </div>
+                        <Input
+                          placeholder="Photo URL"
+                          value={memory.photo}
+                          onChange={(e) => handleTimelineMemoryUpdate(memory.id, 'photo', e.target.value)}
+                          className="glass border-white/30"
+                        />
+                        <Textarea
+                          placeholder="Memory description"
+                          value={memory.description}
+                          onChange={(e) => handleTimelineMemoryUpdate(memory.id, 'description', e.target.value)}
+                          className="glass border-white/30 min-h-[80px]"
+                        />
+                      </div>
+                    </Card>
+                  ))}
+                  
+                  <p className="text-xs text-muted-foreground">
+                    Add 3-5 special memories to create a romantic timeline journey
+                  </p>
+                </div>
+
+                {/* Voice & Video Section */}
+                <div className="space-y-4">
+                  <Label className="text-sm font-medium">🎵 Voice & Video (Optional)</Label>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <input
+                        ref={voiceInputRef}
+                        type="file"
+                        accept="audio/*"
+                        onChange={handleVoiceUpload}
+                        className="hidden"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => voiceInputRef.current?.click()}
+                        className="w-full glass border-white/30"
+                      >
+                        <Mic className="w-4 h-4 mr-2" />
+                        {formData.voiceNoteUrl ? 'Voice Note Added' : 'Add Voice Note'}
+                      </Button>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <input
+                        ref={videoInputRef}
+                        type="file"
+                        accept="video/*"
+                        onChange={handleVideoUpload}
+                        className="hidden"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => videoInputRef.current?.click()}
+                        className="w-full glass border-white/30"
+                      >
+                        <Video className="w-4 h-4 mr-2" />
+                        {formData.videoUrl ? 'Video Added' : 'Add Video Message'}
+                      </Button>
+                    </div>
+                  </div>
+                  
+                  <p className="text-xs text-muted-foreground">
+                    Add a personal voice note or video message to make it extra special
+                  </p>
+                </div>
+
+                {/* Countdown Date Section */}
+                <div className="space-y-2">
+                  <Label htmlFor="countdownDate" className="text-sm font-medium flex items-center gap-2">
+                    ⏳ Countdown Timer (Optional)
+                  </Label>
+                  <Input
+                    id="countdownDate"
+                    type="datetime-local"
+                    value={formData.countdownDate || ""}
+                    onChange={(e) => handleInputChange("countdownDate", e.target.value)}
+                    className="glass border-white/30"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Set a reveal date/time - the proposal will show a countdown until this moment
+                  </p>
+                </div>
+
+                {/* AR Mode Toggle */}
+                <div className="flex items-center justify-between p-4 glass border-white/20 rounded-lg">
+                  <div className="space-y-1">
+                    <Label className="text-sm font-medium flex items-center gap-2">
+                      <Zap className="w-4 h-4" />
+                      AR Mode (Augmented Reality)
+                    </Label>
+                    <p className="text-xs text-muted-foreground">
+                      Enable 3D floating hearts when scanning QR code with phone camera
+                    </p>
+                  </div>
+                  <Switch
+                    checked={formData.arEnabled || false}
+                    onCheckedChange={(checked) => setFormData(prev => ({ ...prev, arEnabled: checked }))}
+                  />
+                </div>
 
                 {/* Action Buttons - separated from form submission */}
                 <div className="space-y-4 pt-6 border-t border-white/20">

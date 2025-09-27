@@ -5,13 +5,17 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Heart, Sparkles, Share2, Volume2, VolumeX, Camera, Upload } from "lucide-react";
+import { Heart, Sparkles, Share2, Volume2, VolumeX, Camera, Upload, Play, Pause } from "lucide-react";
 import { getThemeById, getDefaultTheme } from "@/types/themes";
 import { ThemeProvider } from "./ThemeProvider";
 import EnhancedFloatingBackground from "./EnhancedFloatingBackground";
 import MemoryCarousel from "./MemoryCarousel";
 import EnhancedConfetti from "./EnhancedConfetti";
 import EnhancedBalloons from "./EnhancedBalloons";
+import LoveLetterDisplay from "./LoveLetterDisplay";
+import TimelineDisplay from "./TimelineDisplay";
+import CountdownTimer from "./CountdownTimer";
+import QRCodeGenerator from "./QRCodeGenerator";
 import { useToast } from "@/hooks/use-toast";
 import { useBackgroundMusic } from "@/hooks/useBackgroundMusic";
 import { supabase } from "@/integrations/supabase/client";
@@ -30,9 +34,23 @@ interface ProposalData {
   theme: string;
   photos: Photo[];
   customQuestions?: CustomQuestion[];
+  loveLetter?: string;
+  timelineMemories?: Array<{
+    id: string;
+    title: string;
+    date: string;
+    photo: string;
+    description: string;
+  }>;
+  confettiStyle?: string;
+  customEndingMessage?: string;
+  countdownDate?: string;
+  voiceNoteUrl?: string;
+  videoUrl?: string;
+  arEnabled?: boolean;
 }
 
-type ProposalStep = "intro" | "question" | "balloons" | "transition" | "final" | "response-collection" | "response-submitted" | "celebration";
+type ProposalStep = "countdown" | "love-letter" | "timeline" | "intro" | "question" | "balloons" | "transition" | "final" | "response-collection" | "response-submitted" | "celebration" | "custom-ending" | "qr-code";
 
 const ProposalSite = () => {
   const { slug } = useParams<{ slug: string }>();
@@ -51,7 +69,11 @@ const ProposalSite = () => {
   const [responseMessage, setResponseMessage] = useState("");
   const [responsePhoto, setResponsePhoto] = useState<File | null>(null);
   const [isSubmittingResponse, setIsSubmittingResponse] = useState(false);
+  const [isAudioPlaying, setIsAudioPlaying] = useState(false);
+  const [isVideoPlaying, setIsVideoPlaying] = useState(false);
+  const [currentUrl] = useState(typeof window !== 'undefined' ? window.location.href : '');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const audioRef = useRef<HTMLAudioElement>(null);
 
   // Load proposal data from database
   useEffect(() => {
@@ -88,9 +110,42 @@ const ProposalSite = () => {
           loveMessage: data.love_message,
           theme: data.theme,
           photos: (Array.isArray(data.photos) ? data.photos : []) as unknown as Photo[],
-          customQuestions: (Array.isArray(data.questions) ? data.questions : []) as unknown as CustomQuestion[]
+          customQuestions: (Array.isArray(data.questions) ? data.questions : []) as unknown as CustomQuestion[],
+          loveLetter: data.love_letter || undefined,
+          timelineMemories: (Array.isArray(data.timeline_memories) ? data.timeline_memories : []) as unknown as Array<{
+            id: string;
+            title: string;
+            date: string;
+            photo: string;
+            description: string;
+          }>,
+          confettiStyle: data.confetti_style || 'hearts',
+          customEndingMessage: data.custom_ending_message || undefined,
+          countdownDate: data.countdown_date || undefined,
+          voiceNoteUrl: data.voice_note_url || undefined,
+          videoUrl: data.video_url || undefined,
+          arEnabled: data.ar_enabled || false
         };
         setProposalData(proposalData);
+        
+        // Check if countdown is needed
+        if (data.countdown_date) {
+          const countdownTime = new Date(data.countdown_date).getTime();
+          const now = new Date().getTime();
+          if (now < countdownTime) {
+            setCurrentStep("countdown");
+            return;
+          }
+        }
+        
+        // Start with love letter if available, otherwise intro
+        if (data.love_letter) {
+          setCurrentStep("love-letter");
+        } else if (data.timeline_memories && Array.isArray(data.timeline_memories) && data.timeline_memories.length > 0) {
+          setCurrentStep("timeline");
+        } else {
+          setCurrentStep("intro");
+        }
       } else {
         // Fallback to localStorage for backward compatibility
         const localData = localStorage.getItem(`proposal-${slug}`);
@@ -169,8 +224,13 @@ const ProposalSite = () => {
         setCurrentStep("balloons");
       }
     } else if (currentStep === "final") {
-      setCurrentStep("response-collection");
       setShowConfetti(true);
+      // Show custom ending message if available, otherwise go to response collection
+      if (proposalData?.customEndingMessage) {
+        setCurrentStep("custom-ending");
+      } else {
+        setCurrentStep("response-collection");
+      }
     }
   };
 
@@ -260,7 +320,7 @@ const ProposalSite = () => {
     }
   };
 
-  const toggleAudio = () => {
+  const toggleAudioMusic = () => {
     setAudioEnabled(!audioEnabled);
     toggleMusic();
     
@@ -270,6 +330,39 @@ const ProposalSite = () => {
       duration: 2000,
     });
   };
+
+  const toggleAudio = () => {
+      if (audioRef.current) {
+        if (isAudioPlaying) {
+          audioRef.current.pause();
+        } else {
+          audioRef.current.play();
+        }
+        setIsAudioPlaying(!isAudioPlaying);
+      }
+    };
+
+    const handleCountdownComplete = () => {
+      if (proposalData?.loveLetter) {
+        setCurrentStep("love-letter");
+      } else if (proposalData?.timelineMemories && proposalData.timelineMemories.length > 0) {
+        setCurrentStep("timeline");
+      } else {
+        setCurrentStep("intro");
+      }
+    };
+
+    const handleLoveLetterComplete = () => {
+      if (proposalData?.timelineMemories && proposalData.timelineMemories.length > 0) {
+        setCurrentStep("timeline");
+      } else {
+        setCurrentStep("intro");
+      }
+    };
+
+    const handleTimelineComplete = () => {
+      setCurrentStep("intro");
+    };
 
   const theme = proposalData ? (getThemeById(proposalData.theme) || getDefaultTheme()) : getDefaultTheme();
 
@@ -291,6 +384,37 @@ const ProposalSite = () => {
 
   const renderStep = () => {
     switch (currentStep) {
+      case "countdown":
+        return proposalData?.countdownDate ? (
+          <CountdownTimer
+            targetDate={new Date(proposalData.countdownDate)}
+            partnerName={proposalData.partnerName}
+            onCountdownComplete={handleCountdownComplete}
+          />
+        ) : null;
+
+      case "love-letter":
+        return proposalData?.loveLetter ? (
+          <LoveLetterDisplay
+            letter={proposalData.loveLetter}
+            authorName={proposalData.proposerName}
+            onComplete={handleLoveLetterComplete}
+          />
+        ) : null;
+
+      case "timeline":
+        return proposalData?.timelineMemories && proposalData.timelineMemories.length > 0 ? (
+          <TimelineDisplay
+            memories={proposalData.timelineMemories.map(memory => ({
+              id: memory.id,
+              title: memory.title,
+              date: memory.date,
+              photo: memory.photo,
+              description: memory.description
+            }))}
+            onComplete={handleTimelineComplete}
+          />
+        ) : null;
       case "intro":
         return (
           <motion.div
@@ -495,6 +619,46 @@ const ProposalSite = () => {
                   </p>
                 </motion.div>
 
+                {/* Voice Note Player */}
+                {proposalData.voiceNoteUrl && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 1.5 }}
+                    className="flex justify-center mb-6"
+                  >
+                    <audio ref={audioRef} src={proposalData.voiceNoteUrl} />
+                    <Button
+                      variant="outline"
+                      onClick={toggleAudio}
+                      className="glass border-primary/30 text-primary hover:bg-primary/10"
+                    >
+                      {isAudioPlaying ? <Pause className="w-4 h-4 mr-2" /> : <Play className="w-4 h-4 mr-2" />}
+                      {isAudioPlaying ? 'Pause Voice Note' : 'Play Voice Note 🎵'}
+                    </Button>
+                  </motion.div>
+                )}
+
+                {/* Video Player */}
+                {proposalData.videoUrl && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 2 }}
+                    className="mb-6 flex justify-center"
+                  >
+                    <div className="max-w-md w-full glass border-primary/30 rounded-lg overflow-hidden">
+                      <video 
+                        src={proposalData.videoUrl}
+                        width="100%"
+                        height="200px"
+                        controls
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  </motion.div>
+                )}
+
                 {/* Memory Photos Section */}
                 {proposalData.photos && proposalData.photos.length > 0 && (
                   <motion.div
@@ -513,25 +677,112 @@ const ProposalSite = () => {
                 <motion.div
                   initial={{ opacity: 0, y: 30 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 1.5 }}
-                  className="pt-6"
+                  transition={{ delay: 2.5 }}
+                  className="pt-6 flex justify-center"
                 >
-              <motion.div
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-              >
-                <Button
-                  variant="heart"
-                  size={isMobile ? "default" : "lg"}
-                  onClick={handleYesClick}
-                  className={`${isMobile ? 'text-lg px-8 py-4' : 'text-2xl px-12 py-6'} shadow-glow-romantic`}
-                >
-                  Yes, forever! ✨
-                </Button>
-              </motion.div>
+                  <motion.div
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    <Button
+                      variant="heart"
+                      size={isMobile ? "default" : "lg"}
+                      onClick={handleYesClick}
+                      className={`${isMobile ? 'text-lg px-8 py-4' : 'text-2xl px-12 py-6'} shadow-glow-romantic`}
+                    >
+                      Yes Forever ✨
+                    </Button>
+                  </motion.div>
                 </motion.div>
               </CardContent>
             </Card>
+          </motion.div>
+        );
+
+      case "custom-ending":
+        return (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="text-center space-y-8"
+          >
+            <Card className="glass border-white/30 shadow-glow-romantic p-8">
+              <CardContent className="space-y-6">
+                <motion.div
+                  initial={{ opacity: 0, y: 30 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.5 }}
+                >
+                  <h2 className={`${isMobile ? 'text-2xl' : 'text-4xl md:text-6xl'} font-romantic text-primary mb-6 px-4 text-center`}>
+                    💖 She said YES! 💖
+                  </h2>
+                  
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 1 }}
+                    className="prose prose-lg mx-auto text-center"
+                  >
+                    <p className={`${isMobile ? 'text-lg' : 'text-xl'} text-foreground leading-relaxed italic px-4`}>
+                      "{proposalData?.customEndingMessage}"
+                    </p>
+                    <p className={`${isMobile ? 'text-base' : 'text-lg'} text-muted-foreground mt-4`}>
+                      - {proposalData?.proposerName} 💕
+                    </p>
+                  </motion.div>
+                </motion.div>
+
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 1.5 }}
+                  className="flex justify-center"
+                >
+                  <Button
+                    variant="romantic"
+                    size="lg"
+                    onClick={() => setCurrentStep("qr-code")}
+                    className="text-xl px-8 py-4"
+                  >
+                    Share Our Love Story 💖
+                  </Button>
+                </motion.div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        );
+
+      case "qr-code":
+        return (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="text-center space-y-8 max-w-2xl mx-auto"
+          >
+            <h2 className={`${isMobile ? 'text-2xl' : 'text-3xl md:text-5xl'} font-romantic text-primary mb-8 px-4 text-center`}>
+              Share Your Love Story 💌
+            </h2>
+            
+            <QRCodeGenerator 
+              url={currentUrl} 
+              proposalData={{
+                proposerName: proposalData?.proposerName || '',
+                partnerName: proposalData?.partnerName || ''
+              }}
+            />
+
+            {/* AR Mode Notice */}
+            {proposalData?.arEnabled && (
+              <Card className="glass border-primary/30 p-4">
+                <CardContent className="text-center">
+                  <h3 className="text-lg font-romantic text-primary mb-2">✨ AR Magic Enabled</h3>
+                  <p className="text-sm text-muted-foreground">
+                    When others scan this QR code with their phone camera, they'll see magical 3D hearts floating around! 
+                    Try it yourself - point your phone camera at the QR code!
+                  </p>
+                </CardContent>
+              </Card>
+            )}
           </motion.div>
         );
 

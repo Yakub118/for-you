@@ -49,9 +49,14 @@ export type Database = {
       }
       proposals: {
         Row: {
+          ar_enabled: boolean | null
+          confetti_style: string | null
+          countdown_date: string | null
           created_at: string
+          custom_ending_message: string | null
           expires_at: string | null
           id: string
+          love_letter: string | null
           love_message: string
           partner_name: string
           photos: Json | null
@@ -59,12 +64,20 @@ export type Database = {
           questions: Json | null
           slug: string
           theme: string
+          timeline_memories: Json | null
           updated_at: string
+          video_url: string | null
+          voice_note_url: string | null
         }
         Insert: {
+          ar_enabled?: boolean | null
+          confetti_style?: string | null
+          countdown_date?: string | null
           created_at?: string
+          custom_ending_message?: string | null
           expires_at?: string | null
           id?: string
+          love_letter?: string | null
           love_message: string
           partner_name: string
           photos?: Json | null
@@ -72,12 +85,20 @@ export type Database = {
           questions?: Json | null
           slug: string
           theme?: string
+          timeline_memories?: Json | null
           updated_at?: string
+          video_url?: string | null
+          voice_note_url?: string | null
         }
         Update: {
+          ar_enabled?: boolean | null
+          confetti_style?: string | null
+          countdown_date?: string | null
           created_at?: string
+          custom_ending_message?: string | null
           expires_at?: string | null
           id?: string
+          love_letter?: string | null
           love_message?: string
           partner_name?: string
           photos?: Json | null
@@ -85,7 +106,10 @@ export type Database = {
           questions?: Json | null
           slug?: string
           theme?: string
+          timeline_memories?: Json | null
           updated_at?: string
+          video_url?: string | null
+          voice_note_url?: string | null
         }
         Relationships: []
       }
