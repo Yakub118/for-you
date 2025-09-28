@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Card, CardContent } from "@/components/ui/card";
-import { Heart } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Heart, Mail } from "lucide-react";
 
 interface LoveLetterDisplayProps {
   letter: string;
@@ -12,9 +13,10 @@ interface LoveLetterDisplayProps {
 const LoveLetterDisplay = ({ letter, authorName, onComplete }: LoveLetterDisplayProps) => {
   const [displayedText, setDisplayedText] = useState("");
   const [isComplete, setIsComplete] = useState(false);
+  const [showLetter, setShowLetter] = useState(false);
 
   useEffect(() => {
-    if (!letter) return;
+    if (!letter || !showLetter) return;
     
     let currentIndex = 0;
     const timer = setInterval(() => {
@@ -31,7 +33,58 @@ const LoveLetterDisplay = ({ letter, authorName, onComplete }: LoveLetterDisplay
     }, 50); // Writing speed
 
     return () => clearInterval(timer);
-  }, [letter, onComplete]);
+  }, [letter, onComplete, showLetter]);
+
+  const handleRevealLetter = () => {
+    setShowLetter(true);
+  };
+
+  if (!showLetter) {
+    return (
+      <motion.div
+        initial={{ opacity: 0, scale: 0.9 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.8 }}
+        className="max-w-2xl mx-auto text-center"
+      >
+        <Card className="glass border-white/30 shadow-glow-romantic">
+          <CardContent className="p-8 space-y-6">
+            <motion.div
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ delay: 0.3, type: "spring", stiffness: 100 }}
+              className="inline-flex items-center justify-center w-20 h-20 bg-gradient-romantic rounded-full shadow-glow-romantic"
+            >
+              <Mail className="w-10 h-10 text-white animate-heart-pulse" />
+            </motion.div>
+
+            <div className="space-y-4">
+              <h3 className="text-2xl font-romantic text-primary">
+                💌 A Special Letter Awaits
+              </h3>
+              <p className="text-lg text-muted-foreground">
+                {authorName} has written something heartfelt just for you...
+              </p>
+            </div>
+
+            <motion.div
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              <Button
+                variant="romantic"
+                size="lg"
+                onClick={handleRevealLetter}
+                className="text-xl px-8 py-4 shadow-glow-romantic"
+              >
+                💌 Open Letter
+              </Button>
+            </motion.div>
+          </CardContent>
+        </Card>
+      </motion.div>
+    );
+  }
 
   return (
     <motion.div

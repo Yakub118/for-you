@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Heart, Sparkles, Share2, Volume2, VolumeX, Camera, Upload, Play, Pause } from "lucide-react";
+import { Heart, Sparkles, Share2, Volume2, VolumeX, Camera, Upload } from "lucide-react";
 import { getThemeById, getDefaultTheme } from "@/types/themes";
 import { ThemeProvider } from "./ThemeProvider";
 import EnhancedFloatingBackground from "./EnhancedFloatingBackground";
@@ -16,6 +16,7 @@ import LoveLetterDisplay from "./LoveLetterDisplay";
 import TimelineDisplay from "./TimelineDisplay";
 import CountdownTimer from "./CountdownTimer";
 import QRCodeGenerator from "./QRCodeGenerator";
+import ExpiredProposal from "./ExpiredProposal";
 import { useToast } from "@/hooks/use-toast";
 import { useBackgroundMusic } from "@/hooks/useBackgroundMusic";
 import { supabase } from "@/integrations/supabase/client";
@@ -45,9 +46,6 @@ interface ProposalData {
   confettiStyle?: string;
   customEndingMessage?: string;
   countdownDate?: string;
-  voiceNoteUrl?: string;
-  videoUrl?: string;
-  arEnabled?: boolean;
 }
 
 type ProposalStep = "countdown" | "love-letter" | "timeline" | "intro" | "question" | "balloons" | "transition" | "final" | "response-collection" | "response-submitted" | "celebration" | "custom-ending" | "qr-code";
@@ -69,11 +67,8 @@ const ProposalSite = () => {
   const [responseMessage, setResponseMessage] = useState("");
   const [responsePhoto, setResponsePhoto] = useState<File | null>(null);
   const [isSubmittingResponse, setIsSubmittingResponse] = useState(false);
-  const [isAudioPlaying, setIsAudioPlaying] = useState(false);
-  const [isVideoPlaying, setIsVideoPlaying] = useState(false);
   const [currentUrl] = useState(typeof window !== 'undefined' ? window.location.href : '');
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const audioRef = useRef<HTMLAudioElement>(null);
 
   // Load proposal data from database
   useEffect(() => {
@@ -121,10 +116,7 @@ const ProposalSite = () => {
           }>,
           confettiStyle: data.confetti_style || 'hearts',
           customEndingMessage: data.custom_ending_message || undefined,
-          countdownDate: data.countdown_date || undefined,
-          voiceNoteUrl: data.voice_note_url || undefined,
-          videoUrl: data.video_url || undefined,
-          arEnabled: data.ar_enabled || false
+          countdownDate: data.countdown_date || undefined
         };
         setProposalData(proposalData);
         
@@ -331,53 +323,35 @@ const ProposalSite = () => {
     });
   };
 
-  const toggleAudio = () => {
-      if (audioRef.current) {
-        if (isAudioPlaying) {
-          audioRef.current.pause();
-        } else {
-          audioRef.current.play();
-        }
-        setIsAudioPlaying(!isAudioPlaying);
-      }
-    };
-
-    const handleCountdownComplete = () => {
-      if (proposalData?.loveLetter) {
-        setCurrentStep("love-letter");
-      } else if (proposalData?.timelineMemories && proposalData.timelineMemories.length > 0) {
-        setCurrentStep("timeline");
-      } else {
-        setCurrentStep("intro");
-      }
-    };
-
-    const handleLoveLetterComplete = () => {
-      if (proposalData?.timelineMemories && proposalData.timelineMemories.length > 0) {
-        setCurrentStep("timeline");
-      } else {
-        setCurrentStep("intro");
-      }
-    };
-
-    const handleTimelineComplete = () => {
-      setCurrentStep("intro");
-    };
-
   const theme = proposalData ? (getThemeById(proposalData.theme) || getDefaultTheme()) : getDefaultTheme();
 
+  const handleCountdownComplete = () => {
+    if (proposalData?.loveLetter) {
+      setCurrentStep("love-letter");
+    } else if (proposalData?.timelineMemories && proposalData.timelineMemories.length > 0) {
+      setCurrentStep("timeline");
+    } else {
+      setCurrentStep("intro");
+    }
+  };
+
+  const handleLoveLetterComplete = () => {
+    if (proposalData?.timelineMemories && proposalData.timelineMemories.length > 0) {
+      setCurrentStep("timeline");
+    } else {
+      setCurrentStep("intro");
+    }
+  };
+
+  const handleTimelineComplete = () => {
+    setCurrentStep("intro");
+  };
+
+  // Check if proposal is expired
   if (!proposalData) {
     return (
       <ThemeProvider theme={theme}>
-        <div className="min-h-screen relative overflow-hidden">
-          <EnhancedFloatingBackground theme={theme} />
-          <div className="relative z-10 min-h-screen flex items-center justify-center">
-            <div className="text-center">
-              <h1 className="text-2xl font-romantic text-primary mb-4">Proposal not found 💔</h1>
-              <p className="text-muted-foreground">This romantic link might be broken or expired.</p>
-            </div>
-          </div>
-        </div>
+        <ExpiredProposal />
       </ThemeProvider>
     );
   }
@@ -619,46 +593,6 @@ const ProposalSite = () => {
                   </p>
                 </motion.div>
 
-                {/* Voice Note Player */}
-                {proposalData.voiceNoteUrl && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 1.5 }}
-                    className="flex justify-center mb-6"
-                  >
-                    <audio ref={audioRef} src={proposalData.voiceNoteUrl} />
-                    <Button
-                      variant="outline"
-                      onClick={toggleAudio}
-                      className="glass border-primary/30 text-primary hover:bg-primary/10"
-                    >
-                      {isAudioPlaying ? <Pause className="w-4 h-4 mr-2" /> : <Play className="w-4 h-4 mr-2" />}
-                      {isAudioPlaying ? 'Pause Voice Note' : 'Play Voice Note 🎵'}
-                    </Button>
-                  </motion.div>
-                )}
-
-                {/* Video Player */}
-                {proposalData.videoUrl && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 2 }}
-                    className="mb-6 flex justify-center"
-                  >
-                    <div className="max-w-md w-full glass border-primary/30 rounded-lg overflow-hidden">
-                      <video 
-                        src={proposalData.videoUrl}
-                        width="100%"
-                        height="200px"
-                        controls
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                  </motion.div>
-                )}
-
                 {/* Memory Photos Section */}
                 {proposalData.photos && proposalData.photos.length > 0 && (
                   <motion.div
@@ -771,18 +705,15 @@ const ProposalSite = () => {
               }}
             />
 
-            {/* AR Mode Notice */}
-            {proposalData?.arEnabled && (
-              <Card className="glass border-primary/30 p-4">
-                <CardContent className="text-center">
-                  <h3 className="text-lg font-romantic text-primary mb-2">✨ AR Magic Enabled</h3>
-                  <p className="text-sm text-muted-foreground">
-                    When others scan this QR code with their phone camera, they'll see magical 3D hearts floating around! 
-                    Try it yourself - point your phone camera at the QR code!
-                  </p>
-                </CardContent>
-              </Card>
-            )}
+            {/* Share button instead of AR notice */}
+            <Card className="glass border-primary/30 p-4">
+              <CardContent className="text-center">
+                <h3 className="text-lg font-romantic text-primary mb-2">✨ Share Your Love Story</h3>
+                <p className="text-sm text-muted-foreground">
+                  Download or share this QR code to spread the love! Perfect for printing and sharing with friends.
+                </p>
+              </CardContent>
+            </Card>
           </motion.div>
         );
 
@@ -1045,7 +976,7 @@ const ProposalSite = () => {
           <Button
             variant="dreamy"
             size="icon"
-            onClick={toggleAudio}
+            onClick={toggleAudioMusic}
             className="rounded-full shadow-soft"
           >
             {audioEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}

@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Switch } from "@/components/ui/switch";
-import { Heart, Sparkles, Camera, Wand2, Gift, Bell, Eye, Loader2, Upload, Clock, Mic, Video, Zap } from "lucide-react";
+import { Heart, Sparkles, Camera, Wand2, Gift, Bell, Eye, Loader2, Upload, Clock } from "lucide-react";
 import FloatingBackground from "./FloatingBackground";
 import { useToast } from "@/hooks/use-toast";
 import heroImage from "@/assets/hero-romantic.jpg";
@@ -22,6 +22,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import PreviewModal from "./PreviewModal";
 import LoveLetterDisplay from "./LoveLetterDisplay";
 import ConfettiOptionsSelector, { ConfettiStyle } from "./ConfettiOptionsSelector";
+import { compressImage } from "@/utils/imageCompression";
 
 interface ProposalResponse {
   id: string;
@@ -54,9 +55,6 @@ interface ProposalData {
   confettiStyle?: ConfettiStyle;
   customEndingMessage?: string;
   countdownDate?: string;
-  voiceNoteUrl?: string;
-  videoUrl?: string;
-  arEnabled?: boolean;
 }
 
 const ProposalBuilder = () => {
@@ -76,12 +74,10 @@ const ProposalBuilder = () => {
     photos: [],
     customQuestions: [],
     confettiStyle: "hearts",
-    timelineMemories: [],
-    arEnabled: false
+    timelineMemories: []
   });
   
-  const voiceInputRef = useRef<HTMLInputElement>(null);
-  const videoInputRef = useRef<HTMLInputElement>(null);
+  // Remove voice and video input refs since we're removing those features
 
   // Check for responses on component mount
   useEffect(() => {
@@ -196,10 +192,7 @@ const ProposalBuilder = () => {
           timeline_memories: JSON.parse(JSON.stringify(formData.timelineMemories || [])),
           confetti_style: formData.confettiStyle || 'hearts',
           custom_ending_message: formData.customEndingMessage || null,
-          countdown_date: formData.countdownDate ? new Date(formData.countdownDate).toISOString() : null,
-          voice_note_url: formData.voiceNoteUrl || null,
-          video_url: formData.videoUrl || null,
-          ar_enabled: formData.arEnabled || false
+          countdown_date: formData.countdownDate ? new Date(formData.countdownDate).toISOString() : null
         }]);
 
       if (dbError) {
@@ -245,8 +238,28 @@ const ProposalBuilder = () => {
     setShowPreview(true);
   };
 
-  const handlePhotosChange = (photos: Photo[]) => {
-    setFormData(prev => ({ ...prev, photos }));
+  const handlePhotosChange = async (photos: Photo[]) => {
+    // Compress photos before storing
+    const compressedPhotos = await Promise.all(
+      photos.map(async (photo) => {
+        if (photo.file) {
+          try {
+            const compressedFile = await compressImage(photo.file);
+            return {
+              ...photo,
+              file: compressedFile,
+              url: URL.createObjectURL(compressedFile)
+            };
+          } catch (error) {
+            console.error('Failed to compress image:', error);
+            return photo; // Return original if compression fails
+          }
+        }
+        return photo;
+      })
+    );
+    
+    setFormData(prev => ({ ...prev, photos: compressedPhotos }));
   };
 
   const handleCustomQuestionsChange = (customQuestions: CustomQuestion[]) => {
@@ -285,24 +298,6 @@ const ProposalBuilder = () => {
       ...prev,
       timelineMemories: (prev.timelineMemories || []).filter(memory => memory.id !== id)
     }));
-  };
-
-  const handleVoiceUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file && file.type.startsWith('audio/')) {
-      // Create a blob URL for preview
-      const url = URL.createObjectURL(file);
-      setFormData(prev => ({ ...prev, voiceNoteUrl: url }));
-    }
-  };
-
-  const handleVideoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file && file.type.startsWith('video/')) {
-      // Create a blob URL for preview
-      const url = URL.createObjectURL(file);
-      setFormData(prev => ({ ...prev, videoUrl: url }));
-    }
   };
 
   // Show success page if proposal was created
@@ -563,55 +558,6 @@ const ProposalBuilder = () => {
                   </p>
                 </div>
 
-                {/* Voice & Video Section */}
-                <div className="space-y-4">
-                  <Label className="text-sm font-medium">🎵 Voice & Video (Optional)</Label>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <input
-                        ref={voiceInputRef}
-                        type="file"
-                        accept="audio/*"
-                        onChange={handleVoiceUpload}
-                        className="hidden"
-                      />
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => voiceInputRef.current?.click()}
-                        className="w-full glass border-white/30"
-                      >
-                        <Mic className="w-4 h-4 mr-2" />
-                        {formData.voiceNoteUrl ? 'Voice Note Added' : 'Add Voice Note'}
-                      </Button>
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <input
-                        ref={videoInputRef}
-                        type="file"
-                        accept="video/*"
-                        onChange={handleVideoUpload}
-                        className="hidden"
-                      />
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => videoInputRef.current?.click()}
-                        className="w-full glass border-white/30"
-                      >
-                        <Video className="w-4 h-4 mr-2" />
-                        {formData.videoUrl ? 'Video Added' : 'Add Video Message'}
-                      </Button>
-                    </div>
-                  </div>
-                  
-                  <p className="text-xs text-muted-foreground">
-                    Add a personal voice note or video message to make it extra special
-                  </p>
-                </div>
-
                 {/* Countdown Date Section */}
                 <div className="space-y-2">
                   <Label htmlFor="countdownDate" className="text-sm font-medium flex items-center gap-2">
@@ -627,23 +573,6 @@ const ProposalBuilder = () => {
                   <p className="text-xs text-muted-foreground">
                     Set a reveal date/time - the proposal will show a countdown until this moment
                   </p>
-                </div>
-
-                {/* AR Mode Toggle */}
-                <div className="flex items-center justify-between p-4 glass border-white/20 rounded-lg">
-                  <div className="space-y-1">
-                    <Label className="text-sm font-medium flex items-center gap-2">
-                      <Zap className="w-4 h-4" />
-                      AR Mode (Augmented Reality)
-                    </Label>
-                    <p className="text-xs text-muted-foreground">
-                      Enable 3D floating hearts when scanning QR code with phone camera
-                    </p>
-                  </div>
-                  <Switch
-                    checked={formData.arEnabled || false}
-                    onCheckedChange={(checked) => setFormData(prev => ({ ...prev, arEnabled: checked }))}
-                  />
                 </div>
 
                 {/* Action Buttons - separated from form submission */}

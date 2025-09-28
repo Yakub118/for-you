@@ -54,12 +54,18 @@ export type Database = {
           countdown_date: string | null
           created_at: string
           custom_ending_message: string | null
+          deploy_slots_total: number
+          deploy_slots_used: number
           expires_at: string | null
           id: string
+          is_premium: boolean | null
           love_letter: string | null
           love_message: string
           partner_name: string
+          payment_id: string | null
+          payment_status: string | null
           photos: Json | null
+          plan_type: string
           proposer_name: string
           questions: Json | null
           slug: string
@@ -67,6 +73,8 @@ export type Database = {
           timeline_memories: Json | null
           updated_at: string
           video_url: string | null
+          view_count: number
+          view_limit: number
           voice_note_url: string | null
         }
         Insert: {
@@ -75,12 +83,18 @@ export type Database = {
           countdown_date?: string | null
           created_at?: string
           custom_ending_message?: string | null
+          deploy_slots_total?: number
+          deploy_slots_used?: number
           expires_at?: string | null
           id?: string
+          is_premium?: boolean | null
           love_letter?: string | null
           love_message: string
           partner_name: string
+          payment_id?: string | null
+          payment_status?: string | null
           photos?: Json | null
+          plan_type?: string
           proposer_name: string
           questions?: Json | null
           slug: string
@@ -88,6 +102,8 @@ export type Database = {
           timeline_memories?: Json | null
           updated_at?: string
           video_url?: string | null
+          view_count?: number
+          view_limit?: number
           voice_note_url?: string | null
         }
         Update: {
@@ -96,12 +112,18 @@ export type Database = {
           countdown_date?: string | null
           created_at?: string
           custom_ending_message?: string | null
+          deploy_slots_total?: number
+          deploy_slots_used?: number
           expires_at?: string | null
           id?: string
+          is_premium?: boolean | null
           love_letter?: string | null
           love_message?: string
           partner_name?: string
+          payment_id?: string | null
+          payment_status?: string | null
           photos?: Json | null
+          plan_type?: string
           proposer_name?: string
           questions?: Json | null
           slug?: string
@@ -109,7 +131,48 @@ export type Database = {
           timeline_memories?: Json | null
           updated_at?: string
           video_url?: string | null
+          view_count?: number
+          view_limit?: number
           voice_note_url?: string | null
+        }
+        Relationships: []
+      }
+      user_plans: {
+        Row: {
+          created_at: string
+          deploy_slots_total: number
+          deploy_slots_used: number
+          id: string
+          microsites_created: number
+          microsites_limit: number
+          plan_expires_at: string | null
+          plan_type: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          deploy_slots_total?: number
+          deploy_slots_used?: number
+          id?: string
+          microsites_created?: number
+          microsites_limit?: number
+          plan_expires_at?: string | null
+          plan_type?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          deploy_slots_total?: number
+          deploy_slots_used?: number
+          id?: string
+          microsites_created?: number
+          microsites_limit?: number
+          plan_expires_at?: string | null
+          plan_type?: string
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -118,7 +181,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      cleanup_expired_proposals: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never
